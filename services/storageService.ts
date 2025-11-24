@@ -1,5 +1,4 @@
-
-import { Task, DaySession, DailyLog } from '../types';
+import { Task, DaySession, DailyLog, WorkloadAnalysis } from '../types';
 import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
@@ -7,6 +6,7 @@ const STORAGE_KEYS = {
   TASKS: 'nexus_tasks',
   SESSION: 'nexus_session',
   HISTORY: 'nexus_history',
+  WORKLOADS: 'nexus_workloads',
   USER_ID: 'nexus_user_id',
 };
 
@@ -170,9 +170,45 @@ export const storageService = {
       }
   },
 
+  // --- Workload Persistence ---
+  
+  getWorkloads: async (): Promise<{ initial: WorkloadAnalysis | null, current: WorkloadAnalysis | null } | null> => {
+      if (db) {
+          try {
+              const userId = getUserId();
+              const docRef = doc(db, 'user_data', userId);
+              const docSnap = await getDoc(docRef);
+              
+              if (docSnap.exists() && docSnap.data().workloads) {
+                  const workloads = docSnap.data().workloads;
+                  localStorage.setItem(STORAGE_KEYS.WORKLOADS, JSON.stringify(workloads));
+                  return workloads;
+              }
+          } catch (e) { console.error("Firebase workload read error"); }
+      }
+
+      try {
+          const data = localStorage.getItem(STORAGE_KEYS.WORKLOADS);
+          return data ? JSON.parse(data) : null;
+      } catch (e) { return null; }
+  },
+
+  saveWorkloads: async (initial: WorkloadAnalysis | null, current: WorkloadAnalysis | null): Promise<void> => {
+      const workloads = { initial, current };
+      localStorage.setItem(STORAGE_KEYS.WORKLOADS, JSON.stringify(workloads));
+
+      if (db) {
+          try {
+              const userId = getUserId();
+              await setDoc(doc(db, 'user_data', userId), { workloads }, { merge: true });
+          } catch (e) { console.error("Firebase workload write error", e); }
+      }
+  },
+
   clearAll: (): void => {
     localStorage.removeItem(STORAGE_KEYS.TASKS);
     localStorage.removeItem(STORAGE_KEYS.SESSION);
     localStorage.removeItem(STORAGE_KEYS.HISTORY);
+    localStorage.removeItem(STORAGE_KEYS.WORKLOADS);
   }
 };

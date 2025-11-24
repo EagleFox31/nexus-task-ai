@@ -27,12 +27,20 @@ export const analyzeWorkload = async (tasks: Task[]): Promise<WorkloadAnalysis> 
     return { score: 0, level: 'Light', advice: "Votre semaine est vide. C'est le moment idéal pour planifier des objectifs ambitieux." };
   }
 
-  const taskSummaries = tasks.map(t => `- ${t.title} (Priorité: ${t.priority}, Statut: ${t.status})`).join('\n');
+  // Improved context: Include subtasks for accurate 'Adjusted' load calculation
+  const taskSummaries = tasks.map(t => {
+    let summary = `- ${t.title} (Priorité: ${t.priority}, Statut: ${t.status})`;
+    if (t.subTasks && t.subTasks.length > 0) {
+        summary += `\n    [Détail: ${t.subTasks.length} sous-tâches: ${t.subTasks.map(st => st.title).join(', ')}]`;
+    }
+    return summary;
+  }).join('\n');
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Analyse cette liste de tâches hebdomadaire. Estime la charge de travail globale pour un professionnel créatif.
+      contents: `Analyse cette liste de tâches hebdomadaire pour un professionnel.
+      Si des sous-tâches sont présentes, considère-les comme une charge cognitive supplémentaire significative.
       
       Tasks:
       ${taskSummaries}`,
@@ -41,9 +49,9 @@ export const analyzeWorkload = async (tasks: Task[]): Promise<WorkloadAnalysis> 
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            score: { type: Type.NUMBER, description: "Un score de 0 à 100, où 100 est une surcharge extrême." },
+            score: { type: Type.NUMBER, description: "Un score de 0 à 100. Augmente le score si beaucoup de sous-tâches." },
             level: { type: Type.STRING, enum: ["Light", "Balanced", "Heavy", "Overload"] },
-            advice: { type: Type.STRING, description: "Un conseil court (max 2 phrases) motivant ou d'avertissement en français." }
+            advice: { type: Type.STRING, description: "Un conseil court (max 2 phrases) orienté productivité et gestion d'énergie." }
           },
           required: ["score", "level", "advice"]
         }

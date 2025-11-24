@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Task, TaskStatus, Priority, DaySession, WorkloadAnalysis, DailyLog } from './types';
 import { analyzeWorkload } from './services/geminiService';
@@ -13,7 +12,11 @@ const App: React.FC = () => {
   // --- State ---
   const [tasks, setTasks] = useState<Task[]>([]);
   const [history, setHistory] = useState<DailyLog[]>([]);
-  const [workload, setWorkload] = useState<WorkloadAnalysis | null>(null);
+  
+  // Dual Workload State
+  const [initialWorkload, setInitialWorkload] = useState<WorkloadAnalysis | null>(null);
+  const [currentWorkload, setCurrentWorkload] = useState<WorkloadAnalysis | null>(null);
+  
   const [analyzing, setAnalyzing] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false); 
   const [isCloudActive, setIsCloudActive] = useState(false);
@@ -36,15 +39,20 @@ const App: React.FC = () => {
     const loadData = async () => {
         setIsCloudActive(storageService.isCloudActive());
 
-        const [loadedTasks, loadedSession, loadedHistory] = await Promise.all([
+        const [loadedTasks, loadedSession, loadedHistory, loadedWorkloads] = await Promise.all([
             storageService.getTasks(),
             storageService.getSession(),
-            storageService.getHistory()
+            storageService.getHistory(),
+            storageService.getWorkloads()
         ]);
         
         if (loadedTasks.length > 0) setTasks(loadedTasks);
         if (loadedSession) setSession(loadedSession);
         if (loadedHistory.length > 0) setHistory(loadedHistory);
+        if (loadedWorkloads) {
+            setInitialWorkload(loadedWorkloads.initial);
+            setCurrentWorkload(loadedWorkloads.current);
+        }
         
         setIsLoaded(true);
     };
@@ -65,6 +73,12 @@ const App: React.FC = () => {
     }
   }, [session, isLoaded]);
 
+  useEffect(() => {
+      if (isLoaded) {
+          storageService.saveWorkloads(initialWorkload, currentWorkload);
+      }
+  }, [initialWorkload, currentWorkload, isLoaded]);
+
   // --- Handlers ---
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,11 +95,14 @@ const App: React.FC = () => {
 
     setTasks([newTask, ...tasks]);
     setNewTaskTitle('');
-    setWorkload(null);
+    // Note: We do NOT reset workload here automatically to allow manual refresh 
+    // or trigger it if desired. For now, let's keep the user in control.
   };
 
   const handleUpdateTask = (updatedTask: Task) => {
     setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+    // If subtasks changed, we might want to suggest re-analyzing, 
+    // but the UI button handles it.
   };
 
   const handleDeleteTask = (id: string) => {
@@ -112,23 +129,22 @@ const App: React.FC = () => {
         accumulatedTime: 0,
         lastResumeTime: null,
      });
-
-     // Optional: Visual feedback via console or future toast
      console.log("Day completed and saved:", log);
   };
 
   const runAnalysis = useCallback(async () => {
     setAnalyzing(true);
     const result = await analyzeWorkload(tasks);
-    setWorkload(result);
+    
+    // Logic: If no initial workload exists (first run of week/project), set it.
+    // Otherwise, only update current.
+    if (!initialWorkload) {
+        setInitialWorkload(result);
+    }
+    setCurrentWorkload(result);
+    
     setAnalyzing(false);
-  }, [tasks]);
-
-  useEffect(() => {
-      if (tasks.length > 0 && !workload) {
-          // Auto-trigger logic can go here
-      }
-  }, [tasks, workload]);
+  }, [tasks, initialWorkload]);
 
   const sortedTasks = [...tasks].sort((a, b) => {
       if (a.status === TaskStatus.DONE && b.status !== TaskStatus.DONE) return 1;
@@ -189,7 +205,8 @@ const App: React.FC = () => {
 
             <div className="md:col-span-1">
                 <WorkloadIndicator 
-                    analysis={workload} 
+                    initialAnalysis={initialWorkload}
+                    currentAnalysis={currentWorkload}
                     loading={analyzing} 
                     onAnalyze={runAnalysis}
                 />
