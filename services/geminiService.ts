@@ -2,10 +2,27 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Task, WorkloadAnalysis } from "../types";
 
 // Initialize Gemini Client
-// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Utilisation de l'optional chaining (?.) pour éviter le crash si import.meta.env est indéfini
+// Cela garantit que l'app se charge même si la configuration d'environnement échoue
+const apiKey = import.meta.env?.VITE_API_KEY || "";
+
+let ai: GoogleGenAI | null = null;
+
+if (apiKey) {
+  try {
+    ai = new GoogleGenAI({ apiKey });
+  } catch (e) {
+    console.error("Erreur d'initialisation Gemini:", e);
+  }
+} else {
+  console.warn("⚠️ Clé API Gemini (VITE_API_KEY) manquante. L'IA est désactivée.");
+}
 
 export const analyzeWorkload = async (tasks: Task[]): Promise<WorkloadAnalysis> => {
+  if (!ai) {
+      return { score: 0, level: 'Light', advice: "IA inactive. Ajoutez VITE_API_KEY dans les réglages Vercel pour activer l'analyse." };
+  }
+
   if (tasks.length === 0) {
     return { score: 0, level: 'Light', advice: "Votre semaine est vide. C'est le moment idéal pour planifier des objectifs ambitieux." };
   }
@@ -40,11 +57,13 @@ export const analyzeWorkload = async (tasks: Task[]): Promise<WorkloadAnalysis> 
 
   } catch (error) {
     console.error("Erreur Gemini Workload:", error);
-    return { score: 50, level: 'Balanced', advice: "Impossible d'analyser la charge pour le moment. Vérifiez votre clé API." };
+    return { score: 50, level: 'Balanced', advice: "Impossible d'analyser la charge pour le moment." };
   }
 };
 
 export const breakDownTask = async (taskTitle: string, taskDescription: string): Promise<string[]> => {
+  if (!ai) return ["Configuration Requise", "Ajoutez VITE_API_KEY", "Dans Vercel"];
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -71,6 +90,8 @@ export const breakDownTask = async (taskTitle: string, taskDescription: string):
 };
 
 export const suggestEvolution = async (task: Task): Promise<string> => {
+    if (!ai) return "IA désactivée (Clé manquante)";
+
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
