@@ -1,15 +1,25 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Task, TaskStatus, Priority, DaySession, WorkloadAnalysis, DailyLog } from './types';
 import { analyzeWorkload } from './services/geminiService';
 import { storageService } from './services/storageService';
+import { auth, googleProvider } from './services/firebase'; // Import auth
+import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth'; // Auth methods
 import { DailyControl } from './components/DailyControl';
 import { TaskCard } from './components/TaskCard';
 import { WorkloadIndicator } from './components/WorkloadIndicator';
 import { StatsOverview } from './components/StatsOverview';
-import { Plus, LayoutGrid, List, Rocket, Wifi, WifiOff } from 'lucide-react';
+import { LoginScreen } from './components/LoginScreen';
+import { Plus, LayoutGrid, List, Rocket, Wifi, WifiOff, LogOut } from 'lucide-react';
 
 const App: React.FC = () => {
-  // --- State ---
+  // --- Auth State ---
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // --- App State ---
   const [tasks, setTasks] = useState<Task[]>([]);
   const [history, setHistory] = useState<DailyLog[]>([]);
   
@@ -26,17 +36,40 @@ const App: React.FC = () => {
     isPaused: false,
     startTime: null,
     accumulatedTime: 0,
-    lastResumeTime: null, // New semantic key
+    lastResumeTime: null,
   });
   
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  // --- Effects ---
-  
-  // Load initial data (Async)
+  // --- Auth Effect ---
   useEffect(() => {
+    if (!auth) {
+        setAuthLoading(false);
+        return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+      // If user logs out, clear local state to prevent data leak
+      if (!currentUser) {
+          setTasks([]);
+          setHistory([]);
+          setSession({ isActive: false, isPaused: false, startTime: null, accumulatedTime: 0, lastResumeTime: null });
+          setInitialWorkload(null);
+          setCurrentWorkload(null);
+          setIsLoaded(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // --- Data Loading Effect ---
+  useEffect(() => {
+    if (!user) return; // Only load data if user is logged in
+
     const loadData = async () => {
+        setIsLoaded(false); // Start loading
         setIsCloudActive(storageService.isCloudActive());
 
         const [loadedTasks, loadedSession, loadedHistory, loadedWorkloads] = await Promise.all([
@@ -58,28 +91,52 @@ const App: React.FC = () => {
     };
     
     loadData();
-  }, []);
+  }, [user]); // Run when user changes (logs in)
 
   // Persist Data on Change
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && user) {
         storageService.saveTasks(tasks);
     }
-  }, [tasks, isLoaded]);
+  }, [tasks, isLoaded, user]);
 
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && user) {
         storageService.saveSession(session);
     }
-  }, [session, isLoaded]);
+  }, [session, isLoaded, user]);
 
   useEffect(() => {
-      if (isLoaded) {
+      if (isLoaded && user) {
           storageService.saveWorkloads(initialWorkload, currentWorkload);
       }
-  }, [initialWorkload, currentWorkload, isLoaded]);
+  }, [initialWorkload, currentWorkload, isLoaded, user]);
 
   // --- Handlers ---
+
+  const handleLogin = async () => {
+    if (!auth || !googleProvider) return;
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+        await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+        console.error("Login failed", error);
+        setLoginError(error.code || error.message);
+    } finally {
+        setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+      if (!auth) return;
+      try {
+          await signOut(auth);
+      } catch (error) {
+          console.error("Logout failed", error);
+      }
+  };
+
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
@@ -95,14 +152,10 @@ const App: React.FC = () => {
 
     setTasks([newTask, ...tasks]);
     setNewTaskTitle('');
-    // Note: We do NOT reset workload here automatically to allow manual refresh 
-    // or trigger it if desired. For now, let's keep the user in control.
   };
 
   const handleUpdateTask = (updatedTask: Task) => {
     setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
-    // If subtasks changed, we might want to suggest re-analyzing, 
-    // but the UI button handles it.
   };
 
   const handleDeleteTask = (id: string) => {
@@ -120,7 +173,7 @@ const App: React.FC = () => {
      };
      
      await storageService.saveLog(log);
-     setHistory(prev => [...prev, log]); // Update local state for immediate UI refresh
+     setHistory(prev => [...prev, log]);
      
      setSession({
         isActive: false,
@@ -129,15 +182,12 @@ const App: React.FC = () => {
         accumulatedTime: 0,
         lastResumeTime: null,
      });
-     console.log("Day completed and saved:", log);
   };
 
   const runAnalysis = useCallback(async () => {
     setAnalyzing(true);
     const result = await analyzeWorkload(tasks);
     
-    // Logic: If no initial workload exists (first run of week/project), set it.
-    // Otherwise, only update current.
     if (!initialWorkload) {
         setInitialWorkload(result);
     }
@@ -153,6 +203,18 @@ const App: React.FC = () => {
       return pVal[b.priority] - pVal[a.priority];
   });
 
+  // --- Render Loading / Login / App ---
+
+  if (authLoading) {
+      return <div className="min-h-screen bg-nexus-900 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-nexus-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>;
+  }
+
+  if (!user) {
+      return <LoginScreen onLogin={handleLogin} loading={loginLoading} error={loginError} />;
+  }
+
   return (
     <div className="min-h-screen bg-nexus-900 text-slate-200 pb-20 selection:bg-nexus-500 selection:text-white">
       {/* --- Header --- */}
@@ -162,34 +224,34 @@ const App: React.FC = () => {
             <div className="w-8 h-8 bg-gradient-to-br from-nexus-500 to-nexus-400 rounded-lg flex items-center justify-center shadow-lg shadow-nexus-500/20">
                 <Rocket className="text-white fill-white/20" size={18} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-white">Nexus<span className="text-nexus-400">Task</span></h1>
+            <h1 className="text-xl font-bold tracking-tight text-white hidden sm:block">Nexus<span className="text-nexus-400">Task</span></h1>
           </div>
           
           <div className="flex items-center gap-4">
-             <div className={`hidden sm:flex items-center gap-2 text-xs px-3 py-1 rounded-full border transition-colors duration-500 ${
+             <div className={`hidden md:flex items-center gap-2 text-xs px-3 py-1 rounded-full border transition-colors duration-500 ${
                  isCloudActive 
                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
                  : 'bg-slate-800/50 text-slate-500 border-slate-700/50'
              }`}>
                 {isCloudActive ? <Wifi size={14} /> : <WifiOff size={14} />}
                 <span className="font-medium">
-                    {isCloudActive ? 'Cloud Actif' : 'Mode Local'}
+                    {isCloudActive ? 'Cloud Sync' : 'Offline'}
                 </span>
              </div>
 
-            <div className="hidden md:flex bg-slate-800/50 rounded-lg p-1 border border-slate-700">
-                <button 
-                    onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                    <LayoutGrid size={18} />
-                </button>
-                <button 
-                    onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                    <List size={18} />
-                </button>
+            <div className="flex items-center gap-2">
+                 {user.photoURL ? (
+                     <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-slate-600" />
+                 ) : (
+                     <div className="w-8 h-8 rounded-full bg-nexus-700 flex items-center justify-center text-xs font-bold">{user.email?.charAt(0).toUpperCase()}</div>
+                 )}
+                 <button 
+                    onClick={handleLogout}
+                    title="Se déconnecter"
+                    className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                 >
+                     <LogOut size={18} />
+                 </button>
             </div>
           </div>
         </div>
@@ -235,8 +297,8 @@ const App: React.FC = () => {
         {/* Statistics Row */}
         <StatsOverview history={history} />
 
-        <div className="mb-8">
-            <form onSubmit={handleAddTask} className="relative max-w-2xl mx-auto group">
+        <div className="mb-8 flex items-center gap-4">
+            <form onSubmit={handleAddTask} className="relative flex-1 group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <Plus className="text-nexus-400" size={20} />
                 </div>
@@ -257,6 +319,21 @@ const App: React.FC = () => {
                     </button>
                 </div>
             </form>
+            
+             <div className="hidden md:flex bg-slate-800/50 rounded-xl p-1 border border-slate-700 h-[58px] items-center px-1">
+                <button 
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                    <LayoutGrid size={20} />
+                </button>
+                <button 
+                    onClick={() => setViewMode('list')}
+                    className={`p-2.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                    <List size={20} />
+                </button>
+            </div>
         </div>
 
         <div className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 max-w-4xl mx-auto'}`}>

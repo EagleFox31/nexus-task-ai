@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 // ---------------------------------------------------------
 // CONFIGURATION FIREBASE
@@ -18,13 +19,17 @@ const firebaseConfig = {
 
 let app;
 let db: any;
+let auth: any;
+let googleProvider: any;
 
 try {
     // Initialisation standard Firebase
     if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("COLLER_ICI")) {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
-        console.log("✅ Firebase connecté avec succès");
+        auth = getAuth(app);
+        googleProvider = new GoogleAuthProvider();
+        console.log("✅ Firebase (Auth & DB) connecté avec succès");
     } else {
         console.warn("⚠️ Firebase non configuré. Mode HORS-LIGNE actif.");
     }
@@ -32,4 +37,4 @@ try {
     console.error("❌ Erreur d'initialisation Firebase:", e);
 }
 
-export { db };
+export { db, auth, googleProvider };

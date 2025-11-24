@@ -1,5 +1,5 @@
 import { Task, DaySession, DailyLog, WorkloadAnalysis } from '../types';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 const STORAGE_KEYS = {
@@ -10,11 +10,17 @@ const STORAGE_KEYS = {
   USER_ID: 'nexus_user_id',
 };
 
-// Helper to get or create a persistent local user ID
+// Helper to get the correct User ID (Cloud > Local)
 const getUserId = () => {
+    // 1. Priority: Firebase Auth UID
+    if (auth && auth.currentUser) {
+        return auth.currentUser.uid;
+    }
+    
+    // 2. Fallback: Local Storage ID (Legacy/Offline)
     let uid = localStorage.getItem(STORAGE_KEYS.USER_ID);
     if (!uid) {
-        uid = 'user_' + Date.now() + Math.random().toString(36).substr(2, 9);
+        uid = 'anon_' + Date.now() + Math.random().toString(36).substr(2, 9);
         localStorage.setItem(STORAGE_KEYS.USER_ID, uid);
     }
     return uid;
@@ -37,11 +43,11 @@ const DEBOUNCE_DELAY = 2000;
 
 export const storageService = {
   isCloudActive: (): boolean => {
-    return !!db;
+    return !!db && !!auth?.currentUser;
   },
 
   getTasks: async (): Promise<Task[]> => {
-    if (db) {
+    if (db && auth?.currentUser) {
         try {
             const userId = getUserId();
             const docRef = doc(db, 'user_data', userId);
@@ -49,6 +55,7 @@ export const storageService = {
             
             if (docSnap.exists() && docSnap.data().tasks) {
                 const tasks = docSnap.data().tasks;
+                // Sync to local for redundancy
                 localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
                 return tasks;
             }
@@ -70,7 +77,7 @@ export const storageService = {
         localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
     } catch (e) { console.error(e); }
 
-    if (db) {
+    if (db && auth?.currentUser) {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
             try {
@@ -85,7 +92,7 @@ export const storageService = {
   },
 
   getSession: async (): Promise<DaySession | null> => {
-    if (db) {
+    if (db && auth?.currentUser) {
         try {
             const userId = getUserId();
             const docRef = doc(db, 'user_data', userId);
@@ -112,7 +119,7 @@ export const storageService = {
   saveSession: async (session: DaySession): Promise<void> => {
     localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
 
-    if (db) {
+    if (db && auth?.currentUser) {
          try {
             const userId = getUserId();
             await setDoc(doc(db, 'user_data', userId), { session }, { merge: true });
@@ -123,7 +130,7 @@ export const storageService = {
   },
 
   getHistory: async (): Promise<DailyLog[]> => {
-    if (db) {
+    if (db && auth?.currentUser) {
         try {
             const userId = getUserId();
             const docRef = doc(db, 'user_data', userId);
@@ -157,11 +164,10 @@ export const storageService = {
       } catch(e) { console.error(e); }
 
       // Cloud append
-      if (db) {
+      if (db && auth?.currentUser) {
           try {
               const userId = getUserId();
               const docRef = doc(db, 'user_data', userId);
-              // Use arrayUnion to append to the 'history' array field
               await setDoc(docRef, { history: arrayUnion(log) }, { merge: true });
               console.log("Daily log saved to cloud");
           } catch (error) {
@@ -173,7 +179,7 @@ export const storageService = {
   // --- Workload Persistence ---
   
   getWorkloads: async (): Promise<{ initial: WorkloadAnalysis | null, current: WorkloadAnalysis | null } | null> => {
-      if (db) {
+      if (db && auth?.currentUser) {
           try {
               const userId = getUserId();
               const docRef = doc(db, 'user_data', userId);
@@ -197,7 +203,7 @@ export const storageService = {
       const workloads = { initial, current };
       localStorage.setItem(STORAGE_KEYS.WORKLOADS, JSON.stringify(workloads));
 
-      if (db) {
+      if (db && auth?.currentUser) {
           try {
               const userId = getUserId();
               await setDoc(doc(db, 'user_data', userId), { workloads }, { merge: true });
@@ -210,5 +216,6 @@ export const storageService = {
     localStorage.removeItem(STORAGE_KEYS.SESSION);
     localStorage.removeItem(STORAGE_KEYS.HISTORY);
     localStorage.removeItem(STORAGE_KEYS.WORKLOADS);
+    localStorage.removeItem(STORAGE_KEYS.USER_ID);
   }
 };
