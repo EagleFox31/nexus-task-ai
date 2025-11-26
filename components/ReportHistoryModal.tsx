@@ -49,7 +49,7 @@ export const ReportHistoryModal: React.FC<ReportHistoryModalProps> = ({ reports,
                         <p>Aucun rapport archivé pour le moment.</p>
                     </div>
                 ) : (
-                    reports.map((report) => (
+                    reports.map((report: WeeklyReportData) => (
                         <div 
                             key={report.id} 
                             className="group relative bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-nexus-500/50 rounded-xl p-4 transition-all cursor-pointer"
@@ -58,7 +58,7 @@ export const ReportHistoryModal: React.FC<ReportHistoryModalProps> = ({ reports,
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${getMentorColor(report.mentor.id)} flex items-center justify-center text-white shadow-lg`}>
-                                         {MENTOR_ICONS[report.mentor.id as MentorId] || <User size={20} />}
+                                         {MENTOR_ICONS[report.mentor.id] || <User size={20} />}
                                     </div>
                                     <div>
                                         <h3 className="text-white font-medium flex items-center gap-2">
