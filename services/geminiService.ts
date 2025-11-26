@@ -3,8 +3,27 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Task, WorkloadAnalysis, MentorId, WeeklyReportData, DailyLog, UserProfile, CounterAnalysis, WorkloadAdviceExplanation, PrioritizationSuggestion, Priority, Project } from "../types";
 import { MENTOR_PROFILES } from "../data/mentors";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get AI client or throw meaningful error
+const getAiClient = () => {
+  // Access process.env.API_KEY safely. In Vite via 'define', this is replaced by the string literal.
+  const apiKey = process.env.API_KEY;
+  
+  // Robust check: ensure it's a non-empty string
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+    console.warn("NexusTask AI: API Key is missing or invalid. AI features will be disabled.");
+    return null;
+  }
+
+  try {
+      return new GoogleGenAI({ apiKey });
+  } catch (error) {
+      console.error("NexusTask AI: Failed to initialize GoogleGenAI client.", error);
+      return null;
+  }
+};
+
+// Initialize client lazily and safely
+const ai = getAiClient();
 
 // --- MENTOR SYSTEM PROMPTS ---
 
@@ -110,6 +129,8 @@ const formatTaskWithContext = (task: Task, projects: Project[]): string => {
 };
 
 export const analyzeWorkload = async (tasks: Task[], projects: Project[] = [], history: DailyLog[] = []): Promise<WorkloadAnalysis> => {
+  if (!ai) return { score: 50, level: 'Balanced', advice: "Service IA indisponible (Clé API manquante)." };
+  
   if (tasks.length === 0) {
     return { score: 0, level: 'Light', advice: "Votre semaine est vide. C'est le moment idéal pour planifier des objectifs ambitieux." };
   }
@@ -189,6 +210,8 @@ export const analyzeWorkload = async (tasks: Task[], projects: Project[] = [], h
 };
 
 export const explainWorkloadAdvice = async (advice: string, tasks: Task[], mentorId?: MentorId): Promise<WorkloadAdviceExplanation | null> => {
+    if (!ai) return null;
+    
     // Note: For simple explanation, we just pass the titles, deep project context might be overkill but can be added if needed
     const taskList = tasks.map(t => `- ${t.title} (${t.priority})`).join('\n');
     const mentorContext = mentorId ? MENTOR_PROMPTS[mentorId] : "Agis comme un expert en productivité pragmatique.";
@@ -236,6 +259,8 @@ export const explainWorkloadAdvice = async (advice: string, tasks: Task[], mento
 };
 
 export const breakDownTask = async (task: Task, project?: Project): Promise<string[]> => {
+  if (!ai) return ["Définir le périmètre", "Première ébauche", "Revue finale"];
+  
   const context = project 
     ? `Projet: ${project.title} (Priorité: ${project.priority || 'LOW'}, Domaines: ${project.domains.join(', ')}). Contexte: ${project.description}` 
     : "Aucun contexte projet spécifique.";
@@ -265,6 +290,8 @@ export const breakDownTask = async (task: Task, project?: Project): Promise<stri
 };
 
 export const suggestEvolution = async (task: Task, project?: Project): Promise<string> => {
+    if (!ai) return "Optimisez cette tâche.";
+    
     const context = project 
         ? `Projet: ${project.title} (Priorité: ${project.priority || 'LOW'}, Domaines: ${project.domains.join(', ')}).` 
         : "";
@@ -292,6 +319,8 @@ export const suggestEvolution = async (task: Task, project?: Project): Promise<s
 }
 
 export const suggestProjectTasks = async (project: Project): Promise<{ title: string; priority: Priority }[]> => {
+    if (!ai) return [];
+    
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
@@ -338,6 +367,8 @@ export const suggestProjectTasks = async (project: Project): Promise<{ title: st
 };
 
 export const suggestTaskPriorities = async (tasks: Task[], projects: Project[], userGoal: string): Promise<PrioritizationSuggestion[] | null> => {
+    if (!ai) return null;
+
     const taskList = tasks.map(t => formatTaskWithContext(t, projects)).join('\n');
 
     try {
@@ -403,6 +434,7 @@ export const generateWeeklyReport = async (
   userProfile?: UserProfile,
   projects: Project[] = []
 ): Promise<WeeklyReportData | null> => {
+  if (!ai) return null;
 
   const completedTasks = tasks.filter(t => t.status === 'DONE').length;
   const plannedTasks = tasks.length;
@@ -499,6 +531,7 @@ export const generateCounterAnalysis = async (
     originalReport: WeeklyReportData,
     newMentorId: MentorId
 ): Promise<CounterAnalysis | null> => {
+    if (!ai) return null;
     
     // Find Mentor details manually to ensure they exist
     const mentorProfile = MENTOR_PROFILES.find(m => m.id === newMentorId);

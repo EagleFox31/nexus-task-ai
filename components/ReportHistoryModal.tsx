@@ -49,59 +49,63 @@ export const ReportHistoryModal: React.FC<ReportHistoryModalProps> = ({ reports,
                         <p>Aucun rapport archivé pour le moment.</p>
                     </div>
                 ) : (
-                    reports.map((report: WeeklyReportData) => (
-                        <div 
-                            key={report.id} 
-                            className="group relative bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-nexus-500/50 rounded-xl p-4 transition-all cursor-pointer"
-                            onClick={() => onSelectReport(report)}
-                        >
-                            <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${getMentorColor(report.mentor.id)} flex items-center justify-center text-white shadow-lg`}>
-                                         {MENTOR_ICONS[report.mentor.id] || <User size={20} />}
+                    reports.map((report: WeeklyReportData) => {
+                        const mentorId = report.mentor.id as MentorId;
+                        
+                        return (
+                            <div 
+                                key={report.id} 
+                                className="group relative bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-nexus-500/50 rounded-xl p-4 transition-all cursor-pointer"
+                                onClick={() => onSelectReport(report)}
+                            >
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${getMentorColor(mentorId)} flex items-center justify-center text-white shadow-lg`}>
+                                            {MENTOR_ICONS[mentorId] || <User size={20} />}
+                                        </div>
+                                        <div>
+                                            <h3 className="text-white font-medium flex items-center gap-2">
+                                                {report.mentor.name}
+                                                <span className="text-[10px] text-slate-500 font-normal uppercase border border-slate-700 px-1.5 rounded">
+                                                    {report.week.start.split('-').slice(1).reverse().join('/')} - {report.week.end.split('-').slice(1).reverse().join('/')}
+                                                </span>
+                                            </h3>
+                                            <p className="text-xs text-slate-400">
+                                                Généré le {formatDate(report.createdAt)}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="text-white font-medium flex items-center gap-2">
-                                            {report.mentor.name}
-                                            <span className="text-[10px] text-slate-500 font-normal uppercase border border-slate-700 px-1.5 rounded">
-                                                {report.week.start.split('-').slice(1).reverse().join('/')} - {report.week.end.split('-').slice(1).reverse().join('/')}
-                                            </span>
-                                        </h3>
-                                        <p className="text-xs text-slate-400">
-                                            Généré le {formatDate(report.createdAt)}
-                                        </p>
-                                    </div>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); if(report.id) onDeleteReport(report.id); }}
+                                        className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                        title="Supprimer ce rapport"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
                                 </div>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); if(report.id) onDeleteReport(report.id); }}
-                                    className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                    title="Supprimer ce rapport"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                            
-                            <p className="text-sm text-slate-300 line-clamp-2 border-l-2 border-slate-600 pl-3 mb-3 group-hover:border-nexus-500 transition-colors">
-                                {report.executive_summary}
-                            </p>
+                                
+                                <p className="text-sm text-slate-300 line-clamp-2 border-l-2 border-slate-600 pl-3 mb-3 group-hover:border-nexus-500 transition-colors">
+                                    {report.executive_summary}
+                                </p>
 
-                            <div className="flex items-center justify-between text-xs text-slate-500">
-                                <div className="flex gap-3">
-                                    <span className="flex items-center gap-1">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                        {report.metrics_snapshot.tasks_completed} Tâches
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        <span className="w-2 h-2 rounded-full bg-nexus-500"></span>
-                                        {report.metrics_snapshot.focus_minutes}m Focus
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-1 text-nexus-400 font-bold group-hover:translate-x-1 transition-transform">
-                                    Lire le rapport <ArrowRight size={14} />
+                                <div className="flex items-center justify-between text-xs text-slate-500">
+                                    <div className="flex gap-3">
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                            {report.metrics_snapshot.tasks_completed} Tâches
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-nexus-500"></span>
+                                            {report.metrics_snapshot.focus_minutes}m Focus
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-nexus-400 font-bold group-hover:translate-x-1 transition-transform">
+                                        Lire le rapport <ArrowRight size={14} />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </div>
