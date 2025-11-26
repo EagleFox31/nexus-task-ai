@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { WeeklyReportData } from '../types';
+import { WeeklyReportData, MentorId } from '../types';
 import { X, Calendar, User, ArrowRight, Trash2 } from 'lucide-react';
 import { MENTOR_ICONS, MENTOR_PROFILES } from '../data/mentors';
 
@@ -58,7 +58,7 @@ export const ReportHistoryModal: React.FC<ReportHistoryModalProps> = ({ reports,
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${getMentorColor(report.mentor.id)} flex items-center justify-center text-white shadow-lg`}>
-                                         {MENTOR_ICONS[report.mentor.id as any] || <User size={20} />}
+                                         {MENTOR_ICONS[report.mentor.id as MentorId] || <User size={20} />}
                                     </div>
                                     <div>
                                         <h3 className="text-white font-medium flex items-center gap-2">
