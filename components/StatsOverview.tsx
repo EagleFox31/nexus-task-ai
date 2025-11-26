@@ -68,12 +68,15 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ history }) => {
   });
 
   // Calculate Trend (Month vs Last Month prorated or just raw comparison)
-  // Simple raw comparison for now
   const trend = timeMonth - timeLastMonth;
   const hasData = history.length > 0;
 
+  // Daily Goal for Visual Indicator (e.g. 8 hours)
+  const DAILY_GOAL_MS = 8 * 60 * 60 * 1000;
+  const yesterdayProgress = Math.min((timeYesterday / DAILY_GOAL_MS) * 100, 100);
+
   return (
-    <div className="grid grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       
       {/* Yesterday Card */}
       <div className="glass-panel p-4 rounded-xl flex flex-col justify-between group hover:bg-white/5 transition-colors">
@@ -84,8 +87,14 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ history }) => {
         <div className="text-2xl font-mono font-bold text-white">
             {formatHours(timeYesterday)}
         </div>
-        <div className="h-1 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
-             <div className="h-full bg-indigo-500/50 w-1/2"></div>{/* Dummy visual filler */}
+        <div className="h-1.5 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
+             <div 
+                className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${yesterdayProgress}%` }}
+             ></div>
+        </div>
+        <div className="text-[10px] text-slate-500 mt-1 text-right">
+            Objectif 8h
         </div>
       </div>
 

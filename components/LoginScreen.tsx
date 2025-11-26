@@ -1,15 +1,16 @@
-
-import React from 'react';
-import { Rocket, ShieldCheck, ArrowRight, AlertTriangle, Copy, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Rocket, ShieldCheck, ArrowRight, AlertTriangle, Copy, Check, TestTube } from 'lucide-react';
+import { StarfieldBackground } from './StarfieldBackground';
 
 interface LoginScreenProps {
   onLogin: () => void;
+  onTestLogin?: () => void;
   loading: boolean;
   error?: string | null;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, error }) => {
-  const [copied, setCopied] = React.useState(false);
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onTestLogin, loading, error }) => {
+  const [copied, setCopied] = useState(false);
   const currentDomain = window.location.hostname;
 
   const handleCopy = () => {
@@ -19,14 +20,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, erro
   };
 
   const isDomainError = error && error.includes('auth/unauthorized-domain');
+  // Safely detect local development environment
+  const isDev = (import.meta as any).env && (import.meta as any).env.DEV;
 
   return (
     <div className="min-h-screen bg-nexus-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-nexus-500/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[100px]" />
-      </div>
+      {/* Background Component */}
+      <StarfieldBackground />
 
       <div className="glass-panel max-w-md w-full p-8 rounded-3xl flex flex-col items-center text-center shadow-2xl shadow-nexus-900/50 border border-white/10 relative z-10 animate-in fade-in zoom-in duration-500">
         
@@ -99,6 +99,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, erro
                     </>
                 )}
             </button>
+            
+            {/* Bouton Testeur - Visible sauf si on veut le cacher explicitement */}
+            {onTestLogin && (
+                <button
+                    onClick={onTestLogin}
+                    disabled={loading}
+                    className="w-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 py-3 px-6 rounded-xl transition-all border border-slate-700 hover:border-slate-500 flex items-center justify-center gap-2 text-sm"
+                >
+                    <TestTube size={16} />
+                    <span>Mode Testeur (Hors-Ligne)</span>
+                </button>
+            )}
         </div>
 
         <div className="mt-8 flex items-center gap-2 text-xs text-nexus-500/60 bg-nexus-500/5 px-3 py-1 rounded-full border border-nexus-500/10">
@@ -107,8 +119,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, loading, erro
         </div>
       </div>
       
-      <div className="absolute bottom-4 text-slate-600 text-xs">
-         v1.1 • Cloud Sync Active
+      <div className="absolute bottom-4 text-slate-600 text-xs text-center">
+         v1.2 • Cloud Sync Ready<br/>
+         {isDev ? 'Local Development' : 'Production Build'}
       </div>
     </div>
   );

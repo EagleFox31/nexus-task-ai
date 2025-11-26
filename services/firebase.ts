@@ -1,6 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
+import 'firebase/compat/auth';
 
 // ---------------------------------------------------------
 // CONFIGURATION FIREBASE
@@ -23,12 +24,17 @@ let auth: any;
 let googleProvider: any;
 
 try {
-    // Initialisation standard Firebase
+    // Initialisation standard Firebase (Compat/v8 style)
     if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("COLLER_ICI")) {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        googleProvider = new GoogleAuthProvider();
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(firebaseConfig);
+        } else {
+            app = firebase.app();
+        }
+        
+        db = firebase.firestore();
+        auth = firebase.auth();
+        googleProvider = new firebase.auth.GoogleAuthProvider();
         console.log("✅ Firebase (Auth & DB) connecté avec succès");
     } else {
         console.warn("⚠️ Firebase non configuré. Mode HORS-LIGNE actif.");
@@ -38,3 +44,4 @@ try {
 }
 
 export { db, auth, googleProvider };
+export default firebase;

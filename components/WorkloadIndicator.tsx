@@ -1,19 +1,45 @@
-import React from 'react';
-import { WorkloadAnalysis } from '../types';
-import { Activity, BrainCircuit, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+
+
+import React, { useState } from 'react';
+import { WorkloadAnalysis, WorkloadAdviceExplanation, MentorId } from '../types';
+import { Activity, BrainCircuit, TrendingUp, TrendingDown, Minus, BookOpen, Loader2 } from 'lucide-react';
+import { explainWorkloadAdvice } from '../services/geminiService';
+import { storageService } from '../services/storageService'; // To get tasks context
 
 interface WorkloadIndicatorProps {
   initialAnalysis: WorkloadAnalysis | null;
   currentAnalysis: WorkloadAnalysis | null;
   loading: boolean;
   onAnalyze: () => void;
+  onAdviceExplained: (explanation: WorkloadAdviceExplanation) => void;
+  mentorId?: MentorId; // New Prop
 }
 
-export const WorkloadIndicator: React.FC<WorkloadIndicatorProps> = ({ initialAnalysis, currentAnalysis, loading, onAnalyze }) => {
+export const WorkloadIndicator: React.FC<WorkloadIndicatorProps> = ({ initialAnalysis, currentAnalysis, loading, onAnalyze, onAdviceExplained, mentorId }) => {
+  const [explaining, setExplaining] = useState(false);
   
   // Use current if available, otherwise initial
   const displayAnalysis = currentAnalysis || initialAnalysis;
   
+  const handleExplainAdvice = async () => {
+      if (!displayAnalysis?.advice) return;
+      
+      setExplaining(true);
+      try {
+          // Fetch current tasks for context
+          const tasks = await storageService.getTasks();
+          // Pass the mentorId to customize the tone
+          const result = await explainWorkloadAdvice(displayAnalysis.advice, tasks, mentorId);
+          if (result) {
+              onAdviceExplained(result);
+          }
+      } catch (e) {
+          console.error("Failed to explain advice", e);
+      } finally {
+          setExplaining(false);
+      }
+  };
+
   const getColor = (level?: string) => {
     switch (level) {
       case 'Light': return 'text-emerald-400 border-emerald-500/30';
@@ -114,6 +140,14 @@ export const WorkloadIndicator: React.FC<WorkloadIndicatorProps> = ({ initialAna
                         "{displayAnalysis.advice}"
                     </p>
                  </div>
+                 <button 
+                    onClick={handleExplainAdvice}
+                    disabled={explaining}
+                    className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700"
+                    title={mentorId ? "Comment appliquer ce conseil (Mode Coach)" : "Comment appliquer ce conseil ?"}
+                 >
+                     {explaining ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
+                 </button>
             </div>
             
             {/* Legend if comparing */}
