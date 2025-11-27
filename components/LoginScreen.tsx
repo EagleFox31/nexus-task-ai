@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Rocket, ShieldCheck, ArrowRight, AlertTriangle, Copy, Check, TestTube } from 'lucide-react';
 import { StarfieldBackground } from './StarfieldBackground';
@@ -20,7 +21,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onTestLogin, 
   };
 
   const isDomainError = error && error.includes('auth/unauthorized-domain');
-  // Safely detect local development environment
+  // Safely detect local development environment (True on localhost, False on Vercel)
   const isDev = (import.meta as any).env && (import.meta as any).env.DEV;
 
   return (
@@ -100,8 +101,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onTestLogin, 
                 )}
             </button>
             
-            {/* Bouton Testeur - Visible sauf si on veut le cacher explicitement */}
-            {onTestLogin && (
+            {/* Bouton Testeur - Visible UNIQUEMENT si on est en mode DEV (Localhost) */}
+            {onTestLogin && isDev && (
                 <button
                     onClick={onTestLogin}
                     disabled={loading}
