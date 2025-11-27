@@ -121,7 +121,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onTestLogin, 
       </div>
       
       <div className="absolute bottom-4 text-slate-600 text-xs text-center">
-         v1.2 • Cloud Sync Ready<br/>
+         v1.2.1 • Cloud Sync Ready<br/>
          {isDev ? 'Local Development' : 'Production Build'}
       </div>
     </div>

@@ -1,7 +1,3 @@
-
-
-
-
 import { Task, DaySession, DailyLog, WorkloadAnalysis, UserPreferences, UserProfile, WeeklyReportData, AdviceLog, Project } from '../types';
 import { db, auth } from './firebase';
 import firebase from 'firebase/compat/app';
@@ -191,11 +187,12 @@ const migrateCloudV1ToV2 = async (uid: string) => {
                 v1Data.tasks.forEach((task: Task) => {
                     const taskId = ensureId(task.id);
                     const taskRef = userRef.collection('tasks').doc(taskId);
+                    // IMPORTANT: use merge: true to avoid overwriting projectId if task already exists in V2
                     ops.push((batch) => batch.set(taskRef, { 
                         ...task, 
                         id: taskId,
                         updatedAt: now 
-                    }));
+                    }, { merge: true }));
                 });
             }
 

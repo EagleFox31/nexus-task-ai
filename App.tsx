@@ -1,18 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Task, TaskStatus, Priority, DaySession, WorkloadAnalysis, DailyLog, MentorId, WeeklyReportData, UserProfile, CounterAnalysis, WorkloadAdviceExplanation, AdviceLog, PrioritizationSuggestion, Project } from './types';
 import { analyzeWorkload, generateWeeklyReport, generateCounterAnalysis, suggestTaskPriorities } from './services/geminiService';
@@ -35,7 +21,8 @@ import { PrioritizationModal } from './components/PrioritizationModal';
 import { ProjectManagerModal } from './components/ProjectManagerModal';
 import { ProjectPlanningModal } from './components/ProjectPlanningModal';
 import { generateHeaderGreeting } from './services/greetingService';
-import { Plus, LayoutGrid, List, Rocket, Wifi, WifiOff, LogOut, FileText, Sparkles, X, Flag, BookOpen, Lightbulb, Wand2, FolderPlus, Folder } from 'lucide-react';
+import { Plus, LayoutGrid, List, Rocket, Wifi, WifiOff, LogOut, FileText, Sparkles, X, Flag, BookOpen, Lightbulb, Wand2, FolderPlus, Folder, PieChart } from 'lucide-react';
+import { MENTOR_PROFILES, MENTOR_ICONS } from './data/mentors';
 
 type User = firebase.User;
 
@@ -491,6 +478,29 @@ const App: React.FC = () => {
       }
   };
 
+  // --- Statistics Helpers ---
+  const calculateGlobalProjectProgress = () => {
+      const projectTasks = tasks.filter(t => t.projectId); // Only tasks assigned to a project
+      if (projectTasks.length === 0) return 0;
+      
+      let totalPoints = 0;
+      let completedPoints = 0;
+
+      projectTasks.forEach(t => {
+          if (t.subTasks && t.subTasks.length > 0) {
+              totalPoints += t.subTasks.length;
+              completedPoints += t.subTasks.filter(st => st.completed).length;
+          } else {
+              totalPoints += 1;
+              if (t.status === TaskStatus.DONE) completedPoints += 1;
+          }
+      });
+      
+      if (totalPoints === 0) return 0;
+      return Math.round((completedPoints / totalPoints) * 100);
+  };
+  const globalProgress = calculateGlobalProjectProgress();
+
   // --- Filtering & Sorting ---
   const filteredTasks = tasks.filter(t => {
       if (filterProjectId === 'ALL') return true;
@@ -518,7 +528,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-nexus-900 text-slate-200 pb-20 selection:bg-nexus-500 selection:text-white relative overflow-hidden">
+    <div className="min-h-screen bg-nexus-900 text-slate-200 pb-20 selection:bg-nexus-500 selection:text-white relative overflow-x-hidden">
       <StarfieldBackground />
       {showOnboarding && <OnboardingWizard onComplete={handleOnboardingComplete} />}
 
@@ -543,6 +553,25 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-4">
+
+             {currentMentorId && (
+                <button 
+                    onClick={() => setShowMentorSelector(true)}
+                    className="hidden md:flex items-center gap-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-nexus-500/50 rounded-full pl-1 pr-3 py-1 transition-all group"
+                    title="Changer de Mentor"
+                >
+                    <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${MENTOR_PROFILES.find(m => m.id === currentMentorId)?.color} flex items-center justify-center text-white text-[10px]`}>
+                        {MENTOR_ICONS[currentMentorId]}
+                    </div>
+                    <div className="flex flex-col items-start leading-none">
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Coach</span>
+                        <span className="text-xs font-bold text-slate-200 group-hover:text-white">
+                            {MENTOR_PROFILES.find(m => m.id === currentMentorId)?.name.split(' ')[0]}
+                        </span>
+                    </div>
+                </button>
+             )}
+
              <div className={`hidden md:flex items-center gap-2 text-xs px-3 py-1 rounded-full border transition-colors duration-500 ${
                  isCloudActive && !isTestMode
                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
@@ -602,8 +631,12 @@ const App: React.FC = () => {
                     mentorId={currentMentorId} 
                 />
             </div>
-            <div className="md:col-span-1 glass-panel p-6 rounded-2xl flex flex-col justify-between">
-                <div className="flex justify-between items-start">
+            <div className="md:col-span-1 glass-panel p-6 rounded-2xl flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <PieChart size={80} />
+                </div>
+                
+                <div className="flex justify-between items-start relative z-10">
                     <div>
                         <h3 className="text-lg font-semibold text-white">Projets</h3>
                         <p className="text-slate-400 text-xs">Domaines & Contextes</p>
@@ -612,10 +645,24 @@ const App: React.FC = () => {
                         <FolderPlus size={18} />
                     </button>
                 </div>
-                <div className="mt-4 flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+                
+                {/* Global Project Progress Bar */}
+                {projects.length > 0 && (
+                     <div className="mt-4 relative z-10">
+                        <div className="flex justify-between items-end mb-1">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Avancement Global</span>
+                            <span className={`text-xs font-bold ${globalProgress === 100 ? 'text-emerald-400' : 'text-slate-300'}`}>{globalProgress}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-nexus-500 to-indigo-400 rounded-full transition-all duration-1000" style={{ width: `${globalProgress}%` }} />
+                        </div>
+                     </div>
+                )}
+
+                <div className="mt-4 flex gap-2 overflow-x-auto custom-scrollbar pb-2 relative z-10">
                     {projects.length === 0 && <span className="text-xs text-slate-500 italic">Aucun projet défini.</span>}
                     {projects.map(p => (
-                        <div key={p.id} className={`shrink-0 w-8 h-8 rounded-full ${p.color} flex items-center justify-center shadow-lg cursor-default`} title={p.title}>
+                        <div key={p.id} className={`shrink-0 w-8 h-8 rounded-full ${p.color} flex items-center justify-center shadow-lg cursor-default border border-white/10`} title={p.title}>
                             <span className="text-[10px] font-bold text-white">{p.title.substring(0,2).toUpperCase()}</span>
                         </div>
                     ))}
@@ -745,6 +792,7 @@ const App: React.FC = () => {
       {showProjectModal && (
           <ProjectManagerModal 
              projects={projects}
+             tasks={tasks} // Pass tasks for stats calculation
              onAddProject={handleAddProject}
              onUpdateProject={handleUpdateProject}
              onDeleteProject={handleDeleteProject}
