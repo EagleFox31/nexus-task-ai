@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Rocket, BrainCircuit, ShieldCheck, Zap, Layout, ArrowRight, Check, X as XIcon, Target, Users, Globe } from 'lucide-react';
 import { StarfieldBackground } from './StarfieldBackground';
 import { MENTOR_ICONS } from '../data/mentors';
@@ -17,8 +17,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onTestLogin, 
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const currentDomain = typeof window !== 'undefined' ? window.location.hostname : '';
   const isProduction = currentDomain === 'nexus-task-ai.vercel.app';
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
   
   const { t, language, setLanguage } = useLanguage();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    setIsStandalone(!!standalone);
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const choiceResult = await installPrompt.userChoice;
+    if (choiceResult.outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-nexus-900 text-slate-900 dark:text-white selection:bg-nexus-500 selection:text-white overflow-x-hidden font-sans transition-colors duration-300">
@@ -103,6 +129,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onTestLogin, 
                          </>
                       )}
                   </button>
+
+                  {!isStandalone && (
+                    <div className="w-full flex flex-col items-center gap-3">
+                      <button
+                        onClick={handleInstall}
+                        disabled={!installPrompt}
+                        className="w-full md:w-auto bg-gradient-to-r from-nexus-500 via-indigo-500 to-purple-500 text-white font-bold py-4 px-8 rounded-2xl text-lg shadow-[0_15px_40px_rgba(99,102,241,0.35)] hover:shadow-[0_20px_45px_rgba(99,102,241,0.45)] hover:-translate-y-1 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        Installer NexusTask sur mon mobile
+                      </button>
+                      {!installPrompt && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 text-center leading-snug">
+                          Sur mobile, ouvrez le menu « Ajouter à l’écran d’accueil » pour installer l’app. Ce bouton s’activera si votre navigateur autorise l’installation.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {error && (
                       <div className="mt-4 bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
