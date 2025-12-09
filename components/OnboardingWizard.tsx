@@ -257,7 +257,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
           : null;
 
       return (
-        <div className="max-w-5xl mx-auto w-full animate-in fade-in zoom-in duration-500 px-4 pb-20 relative z-50">
+        <div className="max-w-5xl mx-auto w-full animate-in fade-in zoom-in duration-500 px-3 sm:px-4 pb-24 relative z-50">
              <div className="text-center mb-6 md:mb-8 mt-4 md:mt-0">
                  <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
                      {isRecommended ? "Votre Mentor Idéal" : "Autre Option Sélectionnée"}
@@ -269,12 +269,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                  </p>
              </div>
 
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8 items-start">
                  {/* Main Card */}
-                 <div className="lg:col-span-2 relative overflow-hidden rounded-2xl border border-nexus-500/50 bg-slate-800 shadow-2xl flex flex-col order-1 lg:order-1">
+                 <div className="lg:col-span-2 relative overflow-hidden rounded-2xl border border-nexus-500/50 bg-slate-800 shadow-2xl flex flex-col order-1 lg:order-1 min-w-0">
                       <div className={`absolute top-0 w-full h-2 bg-gradient-to-r ${mentor.color}`} />
-                      <div className="p-4 md:p-8 flex-1 flex flex-col">
-                          <div className="flex flex-col sm:flex-row items-start justify-between mb-4 md:mb-6 gap-4">
+                      <div className="p-4 sm:p-6 md:p-8 flex-1 flex flex-col gap-4">
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                               <div className="flex items-center gap-3 md:gap-4">
                                   <div className={`w-14 h-14 md:w-16 md:h-16 rounded-xl bg-gradient-to-br ${mentor.color} flex items-center justify-center text-white shadow-lg shrink-0`}>
                                       {MENTOR_ICONS[mentor.id]}
@@ -385,7 +385,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
                  </div>
 
                  {/* Sidebar List */}
-                 <div className="lg:col-span-1 space-y-3 overflow-y-auto max-h-[400px] lg:max-h-[600px] custom-scrollbar bg-slate-900/50 p-4 rounded-2xl border border-slate-800 order-2 lg:order-2">
+                 <div className="lg:col-span-1 space-y-3 bg-slate-900/50 p-3 sm:p-4 rounded-2xl border border-slate-800 order-2 lg:order-2 overflow-visible max-h-none lg:overflow-y-auto lg:max-h-[600px] custom-scrollbar w-full">
                      <h3 className="text-sm font-bold text-slate-500 uppercase sticky top-0 bg-slate-900/90 backdrop-blur-sm py-2 z-10">Autres options</h3>
                      {MENTOR_PROFILES.filter(m => m.id !== mentor.id).map(m => (
                          <button
@@ -418,7 +418,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-nexus-900 flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-nexus-900 to-black">
+    <div className="fixed inset-0 z-[200] bg-nexus-900 flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-nexus-900 to-black overflow-hidden">
         {/* Background Animation - Force behind everything */}
         <StarfieldBackground />
 
@@ -428,7 +428,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }
              </div>
         )}
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 relative z-50 flex flex-col justify-center min-h-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-3 sm:p-4 relative z-50 flex flex-col justify-start lg:justify-center min-h-0">
             {step === STEPS.WELCOME && renderWelcome()}
             
             {step === STEPS.IDENTITY && renderIdentity()}
