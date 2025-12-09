@@ -1,0 +1,7 @@
+/* Minimal fallback styles; Tailwind handles the rest. */
+body {
+  background: var(--bg-color, #f8fafc);
+  color: var(--text-color, #0f172a);
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}

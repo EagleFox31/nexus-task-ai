@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nexus-pwa-v1';
+const CACHE_NAME = 'nexus-pwa-v2';
 const OFFLINE_ASSETS = [
   '/',
   '/index.html',
